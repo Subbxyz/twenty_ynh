@@ -1,0 +1,34 @@
+#!/bin/bash
+source _common.sh
+source /usr/share/yunohost/helpers
+
+ynh_script_progression "Restoring the app main dir..."
+ynh_restore "$install_dir"
+ynh_restore "$data_dir"
+
+chown -R "$app:www-data" "$install_dir"
+chmod -R 750 "$install_dir"
+chown -R "$app:www-data" "$data_dir"
+
+ynh_script_progression "Restoring system configurations..."
+ynh_restore "/etc/nginx/conf.d/$domain.d/$app.conf"
+ynh_systemctl --service=nginx --action=reload
+
+ynh_restore "/etc/systemd/system/$app.service"
+systemctl enable "$app" --quiet
+yunohost service add "$app" --description="$app service" --log="/var/log/$app/$app.log"
+
+mkdir -p "/var/log/$app"
+ynh_restore "/var/log/$app"
+chown "$app:$app" "/var/log/$app"
+
+# Pull images (they won't be in the backup)
+pushd "$install_dir"
+    docker-compose --project-name "$app" pull --quiet
+popd
+
+ynh_script_progression "Starting the service..."
+ynh_systemctl --service="$app" --action="start" --log_path="/var/log/$app/$app.log"
+sleep 15
+
+ynh_script_progression "Restoration of $app completed"

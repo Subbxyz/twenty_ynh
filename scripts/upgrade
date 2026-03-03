@@ -1,0 +1,33 @@
+#!/bin/bash
+source _common.sh
+source /usr/share/yunohost/helpers
+
+ynh_script_progression "Stopping the service..."
+ynh_systemctl --service="$app" --action="stop" --log_path="/var/log/$app/$app.log"
+
+ynh_script_progression "Upgrading source files..."
+# Keep .env but replace docker-compose.yml with new one (setup_source auto-does not keep unless told)
+ynh_setup_source --dest_dir="$install_dir" --keep=".env"
+
+ynh_script_progression "Updating configuration..."
+# It is safe to use config add for docker compose yml
+ynh_config_add --template="docker-compose.yml" --destination="$install_dir/docker-compose.yml"
+# We could technically replace the current valid .env template but keep protects it.
+
+chown -R "$app:www-data" "$install_dir"
+chmod -R 750 "$install_dir"
+
+ynh_config_add_nginx
+ynh_config_add_systemd
+yunohost service add "$app" --description="$app service" --log="/var/log/$app/$app.log"
+
+ynh_script_progression "Pulling new Docker images..."
+pushd "$install_dir"
+    docker-compose --project-name "$app" pull --quiet
+popd
+
+ynh_script_progression "Starting the service..."
+ynh_systemctl --service="$app" --action="start" --log_path="/var/log/$app/$app.log"
+sleep 15
+
+ynh_script_progression "Upgrade of $app completed"

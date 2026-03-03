@@ -1,0 +1,49 @@
+#!/bin/bash
+source _common.sh
+source /usr/share/yunohost/helpers
+
+ynh_script_progression "Setting up source files..."
+# Unpacking docker-compose repository
+ynh_setup_source --dest_dir="$install_dir"
+
+ynh_script_progression "Configuring the application..."
+
+# Generate secrets
+app_secret=$(ynh_string_random --length=64)
+ynh_app_setting_set --key=app_secret --value="$app_secret"
+
+db_pwd=$(ynh_string_random --length=24)
+ynh_app_setting_set --key=db_pwd --value="$db_pwd"
+
+# Deploy .env for docker-compose
+ynh_config_add --template=".env" --destination="$install_dir/.env"
+ynh_config_add --template="docker-compose.yml" --destination="$install_dir/docker-compose.yml"
+
+# Create data directories for Docker volume mounts
+mkdir -p "$data_dir/db" "$data_dir/server_data"
+chown -R "$app:www-data" "$data_dir"
+
+# Ensure the app user can access Docker
+usermod -aG docker "$app" 2>/dev/null || true
+
+chown -R "$app:www-data" "$install_dir"
+chmod -R 750 "$install_dir"
+
+ynh_script_progression "Adding system configurations..."
+ynh_config_add_nginx
+ynh_config_add_systemd
+yunohost service add "$app" --description="$app service" --log="/var/log/$app/$app.log"
+
+mkdir -p "/var/log/$app"
+chown "$app:$app" "/var/log/$app"
+
+ynh_script_progression "Starting the service..."
+ynh_systemctl --service="$app" --action="start" --log_path="/var/log/$app/$app.log"
+
+# Wait for db to be healthy roughly
+sleep 15
+if ! docker-compose --project-name "$app" ps --format json | grep -q '"running"'; then
+    ynh_die "Docker containers failed to start. Check: docker-compose --project-name $app logs"
+fi
+
+ynh_script_progression "Installation of $app completed"

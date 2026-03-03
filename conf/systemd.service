@@ -1,0 +1,23 @@
+[Unit]
+Description=__APP__ service (Docker wrapped)
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=__INSTALL_DIR__
+
+# Docker proxying requires root to control the docker socket
+User=root
+
+# Create the networks before up, or use prune, and up!
+ExecStartPre=/usr/bin/docker-compose --project-name __APP__ pull --quiet
+ExecStart=/usr/bin/docker-compose --project-name __APP__ up -d
+ExecStop=/usr/bin/docker-compose --project-name __APP__ down
+
+StandardOutput=append:/var/log/__APP__/__APP__.log
+StandardError=append:/var/log/__APP__/__APP__.log
+
+[Install]
+WantedBy=multi-user.target

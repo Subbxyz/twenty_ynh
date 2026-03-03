@@ -1,0 +1,17 @@
+#!/bin/bash
+source _common.sh
+source /usr/share/yunohost/helpers
+
+# IMPORTANT: Stop containers before backing up data directories.
+# Copying files from a running database (PostgreSQL, MySQL, etc.) can produce
+# a corrupted backup.
+ynh_systemctl --service="$app" --action="stop" --log_path="/var/log/$app/$app.log"
+
+ynh_backup "$install_dir"
+ynh_backup "$data_dir"
+ynh_backup "/etc/nginx/conf.d/$domain.d/$app.conf"
+ynh_backup "/etc/systemd/system/$app.service"
+ynh_backup "/var/log/$app"
+
+# Restart after backup
+ynh_systemctl --service="$app" --action="start" --log_path="/var/log/$app/$app.log"
