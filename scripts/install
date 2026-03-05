@@ -42,7 +42,7 @@ ynh_systemctl --service="$app" --action="start" --log_path="/var/log/$app/$app.l
 
 # Wait for db to be healthy roughly
 sleep 15
-if ! docker-compose --project-name "$app" ps --format json | grep -q '"running"'; then
+if ! docker-compose --project-name "$app" ps | grep -iq "Up\|running"; then
     ynh_die "Docker containers failed to start. Check: docker-compose --project-name $app logs"
 fi
 
