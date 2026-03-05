@@ -42,8 +42,10 @@ ynh_systemctl --service="$app" --action="start" --log_path="/var/log/$app/$app.l
 
 # Wait for db to be healthy roughly
 sleep 15
+pushd "$install_dir" > /dev/null
 if ! docker-compose --project-name "$app" ps | grep -iq "Up\|running"; then
     ynh_die "Docker containers failed to start. Check: docker-compose --project-name $app logs"
 fi
+popd > /dev/null
 
 ynh_script_progression "Installation of $app completed"
