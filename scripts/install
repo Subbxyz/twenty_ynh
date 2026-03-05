@@ -40,8 +40,8 @@ chown "$app:$app" "/var/log/$app"
 ynh_script_progression "Starting the service..."
 ynh_systemctl --service="$app" --action="start" --log_path="/var/log/$app/$app.log"
 
-# Wait for db to be healthy roughly
-sleep 15
+# Wait for db & node to be healthy roughly
+sleep 60
 pushd "$install_dir" > /dev/null
 if ! docker-compose --project-name "$app" ps | grep -iq "Up\|running"; then
     ynh_die "Docker containers failed to start. Check: docker-compose --project-name $app logs"
